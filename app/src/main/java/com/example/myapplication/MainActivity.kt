@@ -750,7 +750,7 @@ fun printDataToBluetoothDevice(
                 outputStream.write("^XZ".toByteArray(Charsets.US_ASCII)) // Finalizar trabajo en ZPL
             }
 
-            outputStream.flush()
+            outputStream.flush()//este es comenrtarfio
             outputStream.close()
             bluetoothSocket.close()
             Toast.makeText(context, "Impresión enviada correctamente", Toast.LENGTH_SHORT).show()
