@@ -67,6 +67,10 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.WriterException
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.pdf417.PDF417Writer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -702,7 +706,7 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
             Button(
                 onClick = {
                     selectedDevice?.let { device ->
-                        val data = "BEATRIZ"
+                        val data = textFieldValue2
                         val printerLanguage = "ZPL"  // Cambiar según el lenguaje soportado por la impresora
                         printDataToBluetoothDevice(device, data, context, printerLanguage)
                     }
@@ -730,45 +734,75 @@ fun printDataToBluetoothDevice(
     device: BluetoothDevice,
     data: String,
     context: Context,
-    printerLanguage: String,  // Define el lenguaje de la impresora (ZPL, CPCL o ESC/POS)
-    bitmap: Bitmap? = null
+    printerLanguage: String  // Define el lenguaje de la impresora (ZPL, CPCL o ESC/POS)
 ) {
     val MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb")
-    try {
-        val bluetoothSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
-        bluetoothSocket.connect()
 
-        if (bluetoothSocket.isConnected) {
-            val outputStream = bluetoothSocket.outputStream
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            // Conectar al dispositivo Bluetooth
+            val bluetoothSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
+            bluetoothSocket.connect()
 
-            // Imprimir texto o comando generado según el lenguaje
-            val configLabel = getConfigLabel(printerLanguage, data)
-            outputStream.write(configLabel)
+            if (bluetoothSocket.isConnected) {
+                val outputStream = bluetoothSocket.outputStream
 
-            // Enviar comando de finalización si es ZPL o CPCL
-            if (printerLanguage == "ZPL") {
-                outputStream.write("^XZ".toByteArray(Charsets.US_ASCII)) // Finalizar trabajo en ZPL
+                // Enviar los datos de impresión
+                val configLabel = getConfigLabel(printerLanguage, data)
+                outputStream.write(configLabel)
+                outputStream.flush()  // Asegurarse de que todos los datos se envíen
+
+                // Enviar comando de finalización si es ZPL o CPCL
+                if (printerLanguage == "ZPL") {
+                    outputStream.write("^XZ".toByteArray(Charsets.US_ASCII)) // Finalizar trabajo en ZPL
+                }
+
+                // Cerrar la conexión solo después de que los datos se hayan enviado
+
+                //bluetoothSocket.close()
+
+                // Mostrar un mensaje de éxito
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Impresión enviada correctamente", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                // Si no se pudo conectar, mostrar un mensaje de error
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "No se pudo conectar al dispositivo Bluetooth", Toast.LENGTH_SHORT).show()
+                }
             }
-
-            outputStream.flush()//este es comenrtarfio
-            outputStream.close()
-            bluetoothSocket.close()
-            Toast.makeText(context, "Impresión enviada correctamente", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(context, "No se pudo conectar al dispositivo Bluetooth", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Manejo de errores
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Error al imprimir: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
-    } catch (e: Exception) {
-        e.printStackTrace()
-        Toast.makeText(context, "Error al imprimir: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }
 
 
+
+
+
 fun getConfigLabel(printerLanguage: String, data: String): ByteArray {
+    println("printerLanguage , $printerLanguage")
     return when (printerLanguage) {
         "ZPL" -> {
-            // Comando ZPL con el texto proporcionado
-            "^XA^FO17,16^GB379,371,8^FS^FT65,255^A0N,135,134^FD$data^FS^XZ".toByteArray(Charsets.US_ASCII)
+            // Calcular la posición para centrar el texto en una etiqueta de 30mm x 30mm (aprox. 236 puntos)
+            val labelWidth = 236  // Ancho de la etiqueta en puntos
+            val labelHeight = 236 // Alto de la etiqueta en puntos
+            val textWidth = 30  // Ancho de la fuente (ajustar según el tamaño de la fuente)
+            val textHeight = 30 // Alto de la fuente (ajustar según el tamaño de la fuente)
+
+            // Calcular las coordenadas para centrar el texto
+           // val xPosition = (labelWidth - textWidth) / 2
+           // val yPosition = (labelHeight - textHeight) / 2
+             val xPosition =10
+            val yPosition = labelHeight
+
+            // Comando ZPL con el texto centrado
+            "^XA^FO${xPosition},${yPosition}^GB200,200,8^FS^FT65,255^A0N,20,20^FD$data^FS^XZ".toByteArray(Charsets.US_ASCII)
         }
         "CPCL" -> {
             // Comando CPCL con el texto proporcionado
