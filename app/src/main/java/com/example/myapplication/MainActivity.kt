@@ -46,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -246,10 +245,10 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                     text = newText
 
                     if (newText.length >= 20) {
-                        extractedText = newText.substring(0, 20) // Primeros 20 caracteres
-                        extractedText2 = newText.substring(20, newText.length.coerceAtMost(29))
-                        extractedText3 = newText.substring(29, newText.length.coerceAtMost(38))
-                        extractedText4 = newText.substring(39, newText.length.coerceAtMost(52))
+                        extractedText = newText.substring(0, 20) // Primeros 20 caracteres //item
+                        extractedText2 = newText.substring(20, newText.length.coerceAtMost(29))//serie_desde
+                        extractedText3 = newText.substring(29, newText.length.coerceAtMost(38))//serie_hasta
+                        extractedText4 = newText.substring(39, newText.length.coerceAtMost(52))//ean
 
                     } else {
                         extractedText =
@@ -292,7 +291,7 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                     .height(70.dp),
                 textStyle = TextStyle(
                     fontSize = 18.sp, // Tamaño del texto
-                    color = Color.Black, // Color del texto
+                    color = Color.Red, // Color del texto
                     fontFamily = FontFamily.Serif, // Familia de fuentes
                     fontWeight = FontWeight.Bold // Peso de la fuente
                 ),
@@ -448,14 +447,17 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                             // Procesar la respuesta si no hay valores nulos
                             response = apiResponse
 
-                            Log.d("*MAKITA*", " No tiene valores nulos: $response")
+
+                            //Log.d("*MAKITA*", " No tiene valores nulos: $response")
                             // textFieldValue2 = response
 
-                            mostrarDialogo(
-                                context,
-                                "Exito!",
-                                "Item con Cargador Definido $response"
-                            )
+                            Toast.makeText(context, "Item con Cargador Definido $response", Toast.LENGTH_SHORT).show()
+
+                            //mostrarDialogo(
+                            //   context,
+                            //   "Exito!",
+                            //   "Item con Cargador Definido $response"
+                             // )
                         }
                     } catch (e: Exception) {
 
@@ -472,15 +474,17 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                         mostrarDialogo(context, "Error", "Error al obtener datos: ${e.message}")
 
                     }
-                } else {
-                    Log.d("*MAKITA*", "vacio")
-                    // response = "El texto está vacío, no se puede realizar la llamada a la API."
+                }
 
-                    mostrarDialogo(
-                        context,
-                        "Error",
-                        "Item no se encuentra en registro de Herramientas con Cargador"
-                    )
+                else {
+                  //  Log.d("*MAKITA*", "vacio")
+                    // response = "El texto está vacío, no se puede realizar la llamada a la API."
+                     Toast.makeText(context, "Capture Herramienta", Toast.LENGTH_SHORT).show()
+                    //mostrarDialogo(
+                     //   context,
+                      //  "Inicio",
+                       // "Capture Codigo"
+                   //)
                 }
             }
 
@@ -508,6 +512,10 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
 
                     )
                 textFieldValue2 = item.CodigoChile1.padStart(10, '0')
+
+
+
+
             }
 
 
@@ -601,49 +609,10 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
             horizontalAlignment = Alignment.CenterHorizontally,  // Centra los elementos horizontalmente
             verticalArrangement = Arrangement.Center  // Centra los elementos verticalmente
         ) {
-            // Botón para generar el código PDF417
-            Button(onClick = {
-                Log.d("*MAKITA*", "PASA POR EL CLICK")
-                bitmap = generarCodigoPDF417(textFieldValue2) // G
+      //      // Botón para generar el código PDF417
 
-                Log.d("*MAKITA*", "######### $bitmap")
-
-            }) {
-                Text(
-                    text = "Generar PDF417",
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        letterSpacing = 1.5.sp
-                    )
-                )
-            }
 
             Spacer(modifier = Modifier.height(16.dp))  // Añade espacio entre el botón y la imagen
-
-            // Mostrar el código PDF417 si ha sido generado
-            bitmap?.let {
-                Log.d("PDF417", "Mostrando el código $textFieldValue2 en pantalla")
-                Image(
-                    bitmap = it.asImageBitmap(),
-                    contentDescription = "Código de barras PDF417",
-                    modifier = Modifier.size(300.dp, 150.dp)  // Ajusta el tamaño de la imagen
-
-
-
-                )
-            } ?: run {
-                Log.d("PDF417", "No se ha generado ningún código aún")
-                Text("Presiona el botón para generar el código PDF417")
-            }
-
-
-            /// aca
-
-
-
-            Spacer(modifier = Modifier.height(16.dp))
 
 
 
@@ -706,9 +675,40 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
             Button(
                 onClick = {
                     selectedDevice?.let { device ->
-                        val data = textFieldValue2
+                        //extractedText = ""
+                        //extractedText2 = ""
+                        //extractedText3 = ""
+                        //extractedText4 = ""
+                        //textFieldValue2 = ""
+
+                        val data = extractedText
                         val printerLanguage = "ZPL"  // Cambiar según el lenguaje soportado por la impresora
-                        printDataToBluetoothDevice(device, data, context, printerLanguage)
+
+                        val codigoCargador = (extractedText?.trim() ?: "").padEnd(20, '0') +
+                                (extractedText2?.trim() ?: "").padEnd(10, '0') +
+                                (extractedText3?.trim() ?: "").padEnd(10, '0') +
+                                (extractedText4?.trim() ?: "").padEnd(13, '0') +
+                                "0" +
+                                (textFieldValue2?.trim() ?: "").padEnd(10, '0') // CodigoChile
+                                "0000000000" +    // Codigo Comercial
+                                "000000000000000000000000000000"  // Nro Proforma
+
+
+
+                        //  (extractedText2 ?: "").padEnd(10, '0')
+
+                        Log.d("*MAKITA*", "CodigoCargador $codigoCargador")
+
+                        //val codigoCargador = extractedText.padStart(20, '0')   // item
+                        //    + extractedText2.padStart(10, '0')                // serie
+                        //   + extractedText3.padStart(10, '0')                // serie hasta
+                        //   + extractedText3.padStart(13, '0')                // ean
+                        //   + "0"                                             // agrega '0' como String
+                        //    + textFieldValue2.padStart(10, '0')               // CodigoChile
+                        //    + "0000000000"                                    // CodigoComercial
+                        //    + "000000000000000000000000000000"                // Otros códigos
+
+                        printDataToBluetoothDevice(device, data, context, printerLanguage, textFieldValue2 , codigoCargador)
                     }
                 },
                 enabled = selectedDevice != null
@@ -734,7 +734,9 @@ fun printDataToBluetoothDevice(
     device: BluetoothDevice,
     data: String,
     context: Context,
-    printerLanguage: String  // Define el lenguaje de la impresora (ZPL, CPCL o ESC/POS)
+    printerLanguage: String , // Lenguaje de Programacion Zebra  ZPL (ZPL, CPCL o ESC/POS)
+    comercial: String,
+    CodigoConcatenado: String
 ) {
     val MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb")
 
@@ -748,13 +750,40 @@ fun printDataToBluetoothDevice(
                 val outputStream = bluetoothSocket.outputStream
 
                 // Enviar los datos de impresión
-                val configLabel = getConfigLabel(printerLanguage, data)
-                outputStream.write(configLabel)
-                outputStream.flush()  // Asegurarse de que todos los datos se envíen
+                Log.d("*MAKITA*", " PASA POR 1  $data")
+               // val configLabel = getConfigLabel(printerLanguage, data)
+               // outputStream.write(configLabel)
+
+               // outputStream.flush()  // Asegurarse de que todos los datos se envíen
 
                 // Enviar comando de finalización si es ZPL o CPCL
-                if (printerLanguage == "ZPL") {
-                    outputStream.write("^XZ".toByteArray(Charsets.US_ASCII)) // Finalizar trabajo en ZPL
+                if (printerLanguage == "ZPL")
+                {
+
+                    Log.d("*MAKITA*", "Imprimir  $CodigoConcatenado")
+
+                    val linea2 = "^XA\n " +
+                             "^PW354 \n" +   // Ancho de la etiqueta (3 cm = 354 dots)
+                             "^LL354 \n" +
+                             "^FO50,25\n " +
+                             "^ADN,15,13\n " +
+                             "^FD$data^FS\n " +
+                             "^FO50,70\n " +
+                             "^ADN,15,12\n " +
+                           //"^B7N,5,10,2,5,N\n " +
+                            //"^B7N,1,30,2,30,N\n  " +
+                             //"^B7N,2,10,2,30,NY\n  " +
+                             //"^FD$comercial^FS\n " +
+                             "^B7N,5,10,2,20,N" +
+                              "^FD$CodigoConcatenado^FS " +
+                             "^FO50,190\n " +
+                             "^ADN,15,13\n " +
+                             "^FD$comercial^FS\n " +
+                             "^XZ\n"
+
+                    outputStream.write(linea2.toByteArray(Charsets.US_ASCII))
+                    outputStream.flush()
+                   // outputStream.write("^XZ".toByteArray(Charsets.US_ASCII)) // Finalizar trabajo en ZPL
                 }
 
                 // Cerrar la conexión solo después de que los datos se hayan enviado
@@ -763,7 +792,7 @@ fun printDataToBluetoothDevice(
 
                 // Mostrar un mensaje de éxito
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Impresión enviada correctamente", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Impresión Correcta", Toast.LENGTH_SHORT).show()
                 }
             } else {
                 // Si no se pudo conectar, mostrar un mensaje de error
@@ -798,11 +827,17 @@ fun getConfigLabel(printerLanguage: String, data: String): ByteArray {
             // Calcular las coordenadas para centrar el texto
            // val xPosition = (labelWidth - textWidth) / 2
            // val yPosition = (labelHeight - textHeight) / 2
-             val xPosition =10
-            val yPosition = labelHeight
+             val xPosition =1
+            val yPosition  =1
 
             // Comando ZPL con el texto centrado
-            "^XA^FO${xPosition},${yPosition}^GB200,200,8^FS^FT65,255^A0N,20,20^FD$data^FS^XZ".toByteArray(Charsets.US_ASCII)
+            //"^XA^FO${xPosition},${yPosition}^GB200,200,8^FS^FT65,255^A0N,20,20^FD$data^FS^XZ".toByteArray(Charsets.US_ASCII)
+            //"^XA^FO1,1^GB379,371,8^FS^FT65,255^A0N,135,134^FD$data^FS^XZ".toByteArray(Charsets.US_ASCII);
+
+            "^XA ^FO50,50 ^B8N,100,Y,N ^FD$data^FS ^XZ".toByteArray(Charsets.US_ASCII);
+
+
+
         }
         "CPCL" -> {
             // Comando CPCL con el texto proporcionado
@@ -952,9 +987,10 @@ fun startBluetoothDiscovery(
             if (BluetoothDevice.ACTION_FOUND == action) {
                 val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 device?.let {
-                    if (!foundDevices.contains(it)) {
+                    if (!foundDevices.contains(it))
+                    {
                         foundDevices.add(it)
-                        setDevices(foundDevices) // Actualiza la lista en la UI
+                        setDevices(foundDevices)
                     }
                 }
             }
