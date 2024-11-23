@@ -70,6 +70,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -263,12 +264,13 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 14.dp),
 
                 keyboardOptions = KeyboardOptions.Default.copy(
                     keyboardType = KeyboardType.Text
                 )
             )
+
 
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -573,28 +575,6 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                 )
             }
 
-            Button(
-                onClick = { /*printpdf*/ },
-
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00909E)),
-                modifier = Modifier
-                    .width(110.dp) // Ancho del botón ajustado
-                    .height(40.dp) // Alto del botón ajustado
-            )
-            {
-                Text(
-                    text = "Imprimir",
-                    style = TextStyle
-                        (
-                        fontSize = 13.sp,  // Cambiar tamaño del texto
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        letterSpacing = 1.5.sp
-                    )
-                )
-            }
-
-
 
 
 
@@ -684,15 +664,7 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                         val data = extractedText
                         val printerLanguage = "ZPL"  // Cambiar según el lenguaje soportado por la impresora
 
-                        val codigoCargador = (extractedText?.trim() ?: "").padEnd(20, '0') +
-                                (extractedText2?.trim() ?: "").padEnd(10, '0') +
-                                (extractedText3?.trim() ?: "").padEnd(10, '0') +
-                                (extractedText4?.trim() ?: "").padEnd(13, '0') +
-                                "0" +
-                                (textFieldValue2?.trim() ?: "").padEnd(10, '0') // CodigoChile
-                                "0000000000" +    // Codigo Comercial
-                                "000000000000000000000000000000"  // Nro Proforma
-
+                        val codigoCargador = (extractedText?.trim() ?: "").padEnd(20, '0') + (extractedText2?.trim() ?: "").padEnd(10, '0') + (extractedText3?.trim() ?: "").padEnd(10, '0') + (extractedText4?.trim() ?: "").padEnd(13, '0') + "0" + (textFieldValue2?.trim() ?: "").padEnd(10, '0') // CodigoChile"0000000000" +    // Codigo Comercial"000000000000000000000000000000"  // Nro Proforma
 
 
                         //  (extractedText2 ?: "").padEnd(10, '0')
@@ -746,7 +718,8 @@ fun printDataToBluetoothDevice(
             val bluetoothSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
             bluetoothSocket.connect()
 
-            if (bluetoothSocket.isConnected) {
+            if (bluetoothSocket.isConnected)
+            {
                 val outputStream = bluetoothSocket.outputStream
 
                 // Enviar los datos de impresión
@@ -800,11 +773,29 @@ fun printDataToBluetoothDevice(
                     Toast.makeText(context, "No se pudo conectar al dispositivo Bluetooth", Toast.LENGTH_SHORT).show()
                 }
             }
-        } catch (e: Exception) {
+        }
+        catch (e: Exception)
+        {
             e.printStackTrace()
             // Manejo de errores
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Error al imprimir: ${e.message}", Toast.LENGTH_SHORT).show()
+            withContext(Dispatchers.Main)
+            {
+                Log.e("Bluetooth", "Error al enviar datos: ${e.message}")
+                //Toast.makeText(context, "Reimprimir: ${e.message}", Toast.LENGTH_SHORT).show()
+
+            }
+        }
+        finally
+        {
+            try
+            {
+                // Importante: Mantén la conexión activa si el socket será reutilizado
+                // o ciérralo si la conexión no es persistente
+               // bluetoothSocket?.close()
+                Log.e("Bluetooth", "Final de Bluetooth")
+            } catch (e: IOException) {
+                e.printStackTrace()
+                Log.e("Bluetooth", "Error al cerrar el socket: ${e.message}")
             }
         }
     }
@@ -973,22 +964,60 @@ fun BluetoothDeviceList(
     }
 }
 
+
+//fun stopBluetoothDiscovery(
+ //   context: Context,
+   // bluetoothAdapter: BluetoothAdapter?,
+    //receiver: BroadcastReceiver?
+//) {
+  //  bluetoothAdapter?.cancelDiscovery()
+    //receiver?.let { context.unregisterReceiver(it) }
+//}
+
+
+
+fun mostrarDialogo(context: Context, titulo: String, mensaje: String) {
+    val builder = AlertDialog.Builder(context)
+    builder.setTitle(titulo)
+    builder.setMessage(mensaje)
+    builder.setPositiveButton("OK", null)
+    builder.show()
+}
+
 fun startBluetoothDiscovery(
     context: Context,
     bluetoothAdapter: BluetoothAdapter?,
     setDevices: (List<BluetoothDevice>) -> Unit
-) {
+): BroadcastReceiver? {
+    if (bluetoothAdapter == null) {
+        Log.e("BluetoothDiscovery", "El adaptador Bluetooth es nulo.")
+        return null
+    }
+
+    // Lista para almacenar dispositivos encontrados
     val foundDevices = mutableListOf<BluetoothDevice>()
 
     // Receptor para dispositivos encontrados
     val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val action: String? = intent?.action
+            val action = intent?.action
             if (BluetoothDevice.ACTION_FOUND == action) {
-                val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                val device: BluetoothDevice? = intent?.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 device?.let {
-                    if (!foundDevices.contains(it))
-                    {
+                    // Manejo seguro del nombre del dispositivo
+                    val deviceName: String = if (ActivityCompat.checkSelfPermission(
+                            context!!,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        it.name ?: "" // Obtener el nombre si hay permiso
+                    } else {
+                        Log.w("BluetoothDiscovery", "Permiso BLUETOOTH_CONNECT no otorgado. Usando nombre vacío.")
+                        "" // Nombre vacío si no hay permiso
+                    }
+
+                    // Filtrar impresoras Zebra
+                    if (isZebraPrinter(deviceName) && !foundDevices.contains(it)) {
                         foundDevices.add(it)
                         setDevices(foundDevices)
                     }
@@ -1001,23 +1030,43 @@ fun startBluetoothDiscovery(
     val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
     context.registerReceiver(receiver, filter)
 
-    // Verifica y solicita permisos si es necesario
-    if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-        // Maneja la solicitud de permisos aquí
-        return
+    // Manejo explícito de permisos
+    if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN)
+        != PackageManager.PERMISSION_GRANTED
+    ) {
+        Log.e("BluetoothDiscovery", "Permisos insuficientes para escaneo Bluetooth.")
+        ActivityCompat.requestPermissions(
+            context as Activity,
+            arrayOf(Manifest.permission.BLUETOOTH_SCAN),
+            1001
+        )
+        return null
     }
 
-    // Inicia el descubrimiento de dispositivos
-    bluetoothAdapter?.startDiscovery()
+    try {
+        if (!bluetoothAdapter.startDiscovery()) {
+            Log.e("BluetoothDiscovery", "No se pudo iniciar el descubrimiento Bluetooth.")
+            context.unregisterReceiver(receiver)
+            return null
+        }
+    } catch (e: SecurityException) {
+        Log.e("BluetoothDiscovery", "Error al iniciar el descubrimiento: ${e.message}")
+        context.unregisterReceiver(receiver)
+        return null
+    }
+
+    return receiver
 }
 
-fun mostrarDialogo(context: Context, titulo: String, mensaje: String) {
-    val builder = AlertDialog.Builder(context)
-    builder.setTitle(titulo)
-    builder.setMessage(mensaje)
-    builder.setPositiveButton("OK", null)
-    builder.show()
+ /**
+ * Verifica si el dispositivo es una impresora Zebra.
+ */
+private fun isZebraPrinter(deviceName: String): Boolean {
+    return deviceName.contains("Zebra", ignoreCase = true) ||
+            deviceName.startsWith("ZQ", ignoreCase = true) ||
+            deviceName.startsWith("QL", ignoreCase = true)
 }
+
 /*
 
 
