@@ -20,6 +20,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -185,6 +186,8 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
     var showDialog by remember { mutableStateOf(false) }
     var selectedPrinterName by remember { mutableStateOf("") }
     var bitmap2 by remember  { mutableStateOf<Bitmap?>(null) }
+    var CodigoChileNN by remember { mutableStateOf("") }
+    var showErrorDialog by remember { mutableStateOf(false) }
 
     val data = """
     *** Mi Empresa ***
@@ -392,6 +395,18 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = { focusManager.clearFocus() }
+                ),
+                textStyle = TextStyle(
+                    fontSize = 25.sp, // Tamaño del texto
+                    color = Color.Red // Color del texto
+                ),
+                colors = TextFieldDefaults.textFieldColors(
+                    textColor = Color.Red, // Color del text
+                    focusedIndicatorColor = Color.Blue, // Color del borde cuando está enfocado
+                    unfocusedIndicatorColor = Color.Gray, // Color del borde cuando no está enfocado
+                    cursorColor = Color.Red, // Color del cursor
+                    focusedLabelColor = Color.Blue, // Color de la etiqueta cuando está enfocado
+                    unfocusedLabelColor = Color.Gray // Color de la etiqueta cuando no está enfocado
                 )
             )
 
@@ -406,6 +421,22 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
+
+            if (showErrorDialog) {
+                AlertDialog(
+                    onDismissRequest = { showErrorDialog = false },
+                    title = { Text("Advertencia") },
+                    text = { Text(errorMessage,style = TextStyle(fontSize = 18.sp))
+                              },
+                    confirmButton = {
+                        Button(onClick = { showErrorDialog = false }) {
+                            Text("Aceptar")
+                        }
+                    }
+                )
+            }
+
+
             LaunchedEffect(extractedText)
             {
                 // Log.d("*MAKITA*", "INGRESANDO API $extractedText")
@@ -414,53 +445,106 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                     Log.d("*MAKITA*", "NOESVACIOELTEXTO $extractedText")
                     try {
                         // Llama a la API con extractedText
-                        val apiResponse = apiService.obtenerHerramienta(extractedText)
 
-                        // Log.d("*MAKITA*", "RESPUESTA: ${apiResponse.size}")
 
-                        // Guarda la respuesta de la API en el estado response
-                        response = apiResponse
+                      //  if (isNetworkAvailable(context))
+                      //  {
+                       //     val apiResponse = apiService.obtenerHerramienta(extractedText)
+                       // }
+                       // else {
+                            // Muestra un mensaje indicando que no hay conexión
+                         //   Toast.makeText(context, "No hay conexión a Internet", Toast.LENGTH_SHORT).show()
+                       // }
 
-                        //Log.d("*MAKITA*", "Tamaño de la respuesta: ${response}")
+                        if (isNetworkAvailable(context)) {
+                            // Inicia una corrutina
+                            CoroutineScope(Dispatchers.IO).launch {
+                                try {
+                                    val apiResponse = apiService.obtenerHerramienta(extractedText)
+                                    withContext(Dispatchers.Main) {
+                                        // Maneja la respuesta en el hilo principal
+                                        Toast.makeText(context, "Respuesta obtenida correctamente", Toast.LENGTH_SHORT).show()
+                                        // Haz algo con la respuesta, por ejemplo, actualizar UI
+                                        response = apiResponse
+                                        if (apiResponse.isNullOrEmpty()) {
+                                            // No es error , no se encuentra definido en tabla HerramientasCargador
+                                            Log.d("*MAKITA*", "ES XX EMPTY: ${apiResponse}")
+                                            errorState = " No se encontraron datos para el item proporcionado"
+                                            mostrarDialogo(
+                                                context,
+                                                "Advertencia",
+                                                "Item sin Cargador Definido (Consulte a Comex)"
+                                            )
+                                        }
 
-                        errorState = null
+                                        //Log.d("*MAKITA*", "Tamaño de la respuesta: ${response}")
 
-                        if (apiResponse.isNullOrEmpty()) {
-                            // No es error , no se encuentra definido en tabla HerramientasCargador
-                            // Log.d("*MAKITA*", "ES XX EMPTY: ${apiResponse}")
-                            errorState = " No se encontraron datos para el item proporcionado"
-                            mostrarDialogo(
-                                context,
-                                "Advertencia",
-                                "Item sin Cargador Definido (Consulte a Comex)"
-                            )
-                        }
+                                        errorState = null
 
-                        val tieneValoresNulos = apiResponse.any { it.item == null }
 
-                        if (tieneValoresNulos) {
-                            // Log.d("*MAKITA*", "La respuesta contiene valores nulos")
-                            mostrarDialogo(
-                                context,
-                                "Advertencia",
-                                "Item sin Cargador Definido (Consulte a Comex)"
-                            )
+                                        val tieneValoresNulos = apiResponse.any { it.item == null }
+
+                                        if (tieneValoresNulos) {
+                                            Log.d("*MAKITA*", "La respuesta contiene valores nulos")
+
+                                            errorMessage = "Advertencia Item sin Cargador Definido"
+                                            showErrorDialog = true
+                                            text = ""
+                                            extractedText = ""
+                                            extractedText2 = ""
+                                            extractedText3 = ""
+                                            extractedText4 = ""
+                                            textFieldValue2 = ""
+                                            response = emptyList()
+                                            focusRequester.requestFocus()
+
+                                            //mostrarDialogo(
+                                              //  context,
+                                               // "Advertencia",
+                                               // "Item sin Cargador Definido (Consulte a Comex)"
+                                            //)
+                                        } else
+                                        {
+                                            // Procesar la respuesta si no hay valores nulos
+                                            response = apiResponse
+
+                                            //Log.d("*MAKITA*", " No tiene valores nulos: $response")
+                                            // textFieldValue2 = response
+
+                                            Toast.makeText(context, "Item con Cargador Definido $response", Toast.LENGTH_LONG).show()
+
+                                            //mostrarDialogo(
+                                            //   context,
+                                            //   "Exito!",
+                                            //   "Item con Cargador Definido $response"
+                                            // )
+                                        }
+
+                                        println(apiResponse)
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        // Manejo de errores
+                                        Toast.makeText(context, "Error al obtener los datos desde el servidor, revise wifi MCL-Bodega: ${e.message}", Toast.LENGTH_LONG).show()
+                                        errorMessage = "Error al obtener los datos: ${e.message}"
+                                        showErrorDialog = true
+                                        text = ""
+                                        extractedText = ""
+                                        extractedText2 = ""
+                                        extractedText3 = ""
+                                        extractedText4 = ""
+                                        textFieldValue2 = ""
+                                        response = emptyList()
+                                        focusRequester.requestFocus()
+
+                                    }
+                                }
+                            }
                         } else {
-                            // Procesar la respuesta si no hay valores nulos
-                            response = apiResponse
-
-
-                            //Log.d("*MAKITA*", " No tiene valores nulos: $response")
-                            // textFieldValue2 = response
-
-                            Toast.makeText(context, "Item con Cargador Definido $response", Toast.LENGTH_SHORT).show()
-
-                            //mostrarDialogo(
-                            //   context,
-                            //   "Exito!",
-                            //   "Item con Cargador Definido $response"
-                             // )
+                            // Muestra un mensaje indicando que no hay conexión
+                            Toast.makeText(context, "No hay conexión a Internet", Toast.LENGTH_SHORT).show()
                         }
+
                     } catch (e: Exception) {
 
                         // errorState =
@@ -471,9 +555,9 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                         }
                         e.printStackTrace()
 
-                        Log.e("*MAKITA*", "Error al obtener datos: ${e.message}")
+                        Log.e("*MAKITA*", "Error al obtener datos 1 : ${e.message}")
                         // Manejar error de la API+
-                        mostrarDialogo(context, "Error", "Error al obtener datos: ${e.message}")
+                        mostrarDialogo(context, "Error", "Error al obtener datos 2: ${e.message}")
 
                     }
                 }
@@ -514,8 +598,7 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
 
                     )
                 textFieldValue2 = item.CodigoChile1.padStart(10, '0')
-
-
+                CodigoChileNN = item.CodigoChile1.trim()
 
 
             }
@@ -542,41 +625,8 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                 .padding(horizontal = 16.dp), // Añadir padding horizontal
             horizontalArrangement = Arrangement.SpaceEvenly
 
-        ) {
-
-
-            Button(
-                onClick = {
-                    // Limpiar el contenido de los campos de texto
-                    text = ""
-                    extractedText = ""
-                    extractedText2 = ""
-                    extractedText3 = ""
-                    extractedText4 = ""
-                    textFieldValue2 = ""
-                    response = emptyList()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00909E)),
-                modifier = Modifier
-                    .width(110.dp) // Ancho del botón ajustado
-                    .height(40.dp) // Alto del botón ajustado
-            )
-            {
-                Text(
-                    text = "Limpiar ",
-
-                    style = TextStyle
-                        (
-                        fontSize = 13.sp,  // Cambiar tamaño del texto
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        letterSpacing = 1.5.sp
-                    )
-                )
-            }
-
-
-
+        )
+        {
 
 
         }
@@ -610,10 +660,38 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                     showDialog = true
                     startBluetoothDiscovery(context, bluetoothAdapter, setPrinters)
                 }
-            })
+            },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor =  Color(0xFF00909E),
+                    contentColor = Color.White   // Color del texto
+                )
+
+            )
             {
                 Text("Seleccionar Impresora Bluetooth")
             }
+
+            Spacer(modifier = Modifier.height(16.dp))  // Añade espacio entre el botón y la imagen
+
+            Button(
+                onClick = {
+                    text = ""
+                    extractedText = ""
+                    extractedText2 = ""
+                    extractedText3 = ""
+                    extractedText4 = ""
+                    textFieldValue2 = ""
+                    response = emptyList()},
+                    colors = ButtonDefaults.buttonColors(
+                    containerColor =  Color(0xFF00909E),
+                    contentColor = Color.White   // Color del texto
+                    ),
+                   modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Limpiar Datos")
+            }
+
+
 
 
             // Diálogo de selección de dispositivos
@@ -670,6 +748,10 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                         //  (extractedText2 ?: "").padEnd(10, '0')
 
                         Log.d("*MAKITA*", "CodigoCargador $codigoCargador")
+                        Log.d("*MAKITA*", "CodigoCargador $textFieldValue2")
+                        Log.d("*MAKITA*", "CodigoCargador $CodigoChileNN")
+                       // CodigoChileNN
+
 
                         //val codigoCargador = extractedText.padStart(20, '0')   // item
                         //    + extractedText2.padStart(10, '0')                // serie
@@ -680,7 +762,15 @@ fun FunSaludo(name: String, modifier: Modifier = Modifier)
                         //    + "0000000000"                                    // CodigoComercial
                         //    + "000000000000000000000000000000"                // Otros códigos
 
-                        printDataToBluetoothDevice(device, data, context, printerLanguage, textFieldValue2 , codigoCargador)
+                        printDataToBluetoothDevice(device, data, context, printerLanguage, textFieldValue2 , codigoCargador,CodigoChileNN)
+
+                        text = ""
+                        extractedText = ""
+                        extractedText2 = ""
+                        extractedText3 = ""
+                        extractedText4 = ""
+                        textFieldValue2 = ""
+                        response = emptyList()
                     }
                 },
                 enabled = selectedDevice != null
@@ -708,7 +798,8 @@ fun printDataToBluetoothDevice(
     context: Context,
     printerLanguage: String , // Lenguaje de Programacion Zebra  ZPL (ZPL, CPCL o ESC/POS)
     comercial: String,
-    CodigoConcatenado: String
+    CodigoConcatenado: String,
+    CodigocomercialNN: String
 ) {
     val MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb")
 
@@ -751,7 +842,7 @@ fun printDataToBluetoothDevice(
                               "^FD$CodigoConcatenado^FS " +
                              "^FO50,190\n " +
                              "^ADN,15,13\n " +
-                             "^FD$comercial^FS\n " +
+                             "^FD$CodigocomercialNN^FS\n " +
                              "^XZ\n"
 
                     outputStream.write(linea2.toByteArray(Charsets.US_ASCII))
@@ -802,6 +893,11 @@ fun printDataToBluetoothDevice(
 }
 
 
+fun isNetworkAvailable(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val networkInfo = connectivityManager.activeNetworkInfo
+    return networkInfo != null && networkInfo.isConnected
+}
 
 
 
@@ -931,7 +1027,6 @@ fun BluetoothDeviceList(
 
     Log.d("*MAKITA*", " version blue 1")
 
-
     val hasBluetoothConnectPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
     {
         ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
@@ -1015,9 +1110,12 @@ fun startBluetoothDiscovery(
                         Log.w("BluetoothDiscovery", "Permiso BLUETOOTH_CONNECT no otorgado. Usando nombre vacío.")
                         "" // Nombre vacío si no hay permiso
                     }
-
+                    Log.e("*MAKITA*", "isZebraPrinter. $deviceName")
                     // Filtrar impresoras Zebra
-                    if (isZebraPrinter(deviceName) && !foundDevices.contains(it)) {
+                    if (isZebraPrinter(deviceName) && !foundDevices.contains(it))
+                   // if (  !foundDevices.contains(it))
+                    {
+                        Log.e("*MAKITA*", "isZebraPrinter. $deviceName")
                         foundDevices.add(it)
                         setDevices(foundDevices)
                     }
@@ -1063,8 +1161,7 @@ fun startBluetoothDiscovery(
  */
 private fun isZebraPrinter(deviceName: String): Boolean {
     return deviceName.contains("Zebra", ignoreCase = true) ||
-            deviceName.startsWith("ZQ", ignoreCase = true) ||
-            deviceName.startsWith("QL", ignoreCase = true)
+            deviceName.startsWith("ZQ", ignoreCase = true)
 }
 
 /*
